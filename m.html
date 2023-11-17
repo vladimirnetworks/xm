@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audio Recorder</title>
+</head>
+<body>
+
+<button id="recordButton">Record Audio</button>
+
+<script>
+     mediaRecorder = null;
+document.addEventListener('DOMContentLoaded', function() {
+  // Check for browser support
+  if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    var recordButton = document.getElementById('recordButton');
+    var audioChunks = [];
+
+    recordButton.addEventListener('click', startRecording);
+
+    function startRecording() {
+      navigator.mediaDevices.getUserMedia({            audio: {
+                                noiseSuppression: false,
+                                autoGainControl: false,
+                                echoCancellation: false,
+                                googAutoGainControl: false,
+                               
+                            }, })
+        .then(function (stream) {
+          mediaRecorder = new MediaRecorder(stream);
+
+          mediaRecorder.ondataavailable = function (event) {
+            if (event.data.size > 0) {
+              audioChunks.push(event.data);
+            }
+          };
+
+          mediaRecorder.onstop = function () {
+            var audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            sendData(audioBlob);
+          };
+
+          mediaRecorder.start();
+
+          recordButton.innerHTML = 'Stop Recording';
+
+          recordButton.removeEventListener('click', startRecording);
+          recordButton.addEventListener('click', stopRecording);
+        })
+        .catch(function (err) {
+          console.error('Error accessing microphone:', err);
+        });
+    }
+
+    function stopRecording() {
+      mediaRecorder.stop();
+      recordButton.innerHTML = 'Record Audio';
+
+      recordButton.removeEventListener('click', stopRecording);
+      recordButton.addEventListener('click', startRecording);
+    }
+
+    function sendData(audioBlob) {
+      var formData = new FormData();
+      formData.append('audio', audioBlob, 'recording.wav');
+
+      fetch('http://192.168.1.216/us/save.php?fname=aute', {
+        method: 'POST',
+        body: formData
+      })
+      .then(function(response) {
+        console.log('Audio sent successfully:', response);
+      })
+      .catch(function(error) {
+        console.error('Error sending audio:', error);
+      });
+    }
+  } else {
+    console.error('getUserMedia not supported on your browser!');
+  }
+});
+</script>
+
+</body>
+</html>
